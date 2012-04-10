@@ -17,7 +17,8 @@ $read_set->add($sock); # add the main socket to the set
 my $debug =     1;
 my $logfile = "/tmp/cb-log";
 my ($cb_str, $date);
-my $serial = $ARGV[0] || "/dev/ttyS1";
+my $serial = $ARGV[0] || "/dev/ttyUSB0";
+my $serial_params = "ispeed 115200 ospeed 115200 -cstopb cs8"; 
 
 chomp($date=`date`);
 open (OUTPUT, ">>$logfile") || die "---Could not open file $logfile : $!\n"; #  Write header to file
@@ -26,8 +27,9 @@ close OUTPUT;
 printf "\n%s\n", $date;
 
 if ($serial ne 'fake') {
-    system("stty -F $serial 9600 cs8 raw");
-    open INFILE, $serial or die "\nCannot open $serial!\n";
+    system("stty -F $serial $serial_params");
+    open INFILE, '<'.$serial or die "\nCannot open $serial!\n";
+#    print INFILE "<xxp>";
 } else {
     my $pid = open INFILE, '-|'; # spawn child process to generate data
     unless ($pid) {
@@ -59,6 +61,7 @@ while (1) {
 	       } 
 	   } elsif ($rh == \*INFILE) {
 	       chomp($cb_str=<INFILE>);
+	       
 	       $cb_str =~ s/\r//g;
 	       print MSG "db\t$cb_str\n" if $debug;
 	       chomp($date=`date`);
@@ -86,13 +89,15 @@ sub showData {
     my $d = rand(40);
     my $e = rand(5);
 
-    ($a, $b, $c, $d, $e) = split(/\s+/, $str);
+#    ($a, $b, $c, $d, $e) = split(/\s+/, $str);
 
     print "Content-type: text/html\r\n\r\n";
     printf '{"a": "%.2d/%.2d/%.2d %.2d:%.2d:%.2d", '.
-	'"c": %.4f, "d": %.2f, "e": %.2f, "f": %.2f, "g": %.4f}'.
+	'"c": "%s"}'.
+#	'"c": %.4f, "d": %.2f, "e": %.2f, "f": %.2f, "g": %.4f}'.
 	"\r\n",
-    $mon+1, $mday+1, $year-100, $hour, $min, $sec, $a, $b, $c, $d, $e;
+    
+	$mon+1, $mday+1, $year-100, $hour, $min, $sec, $str;
 
     open (MYLOG, ">> /tmp/req-log") || die "---Could not open file /tmp/req-log : $!\n"; #  Write Cycle Analyst data
     printf MYLOG "%s\t%s\n", $date, $cb_str;
