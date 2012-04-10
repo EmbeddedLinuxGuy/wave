@@ -83,23 +83,27 @@ sub showData {
     my($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
     my $str = shift;
 
-    my $a = 1 + rand(2);
-    my $b = 30 + rand(10);
-    my $c = rand(40);
-    my $d = rand(40);
-    my $e = rand(5);
-
-#    ($a, $b, $c, $d, $e) = split(/\s+/, $str);
-
     print "Content-type: text/html\r\n\r\n";
     printf '{"a": "%.2d/%.2d/%.2d %.2d:%.2d:%.2d", '.
-	'"c": "%s"}'.
-#	'"c": %.4f, "d": %.2f, "e": %.2f, "f": %.2f, "g": %.4f}'.
-	"\r\n",
-    
-	$mon+1, $mday+1, $year-100, $hour, $min, $sec, $str;
+	'"c": [ ',
+	$mon+1, $mday+1, $year-100, $hour, $min, $sec;
 
-    open (MYLOG, ">> /tmp/req-log") || die "---Could not open file /tmp/req-log : $!\n"; #  Write Cycle Analyst data
+    my @points = ();
+    while ($str =~ /^\<\d\dt([-0])(\d\d\d)\>/) {
+	my $sign = $1;
+	my $data = $2;
+	$str = $';
+
+	$data =~ s/^0*//;
+        if ($data eq "") { $data = "0"; }
+	if ($sign eq "-") {
+	    $data = -$data;
+	}
+        push @points, $data;
+    }
+    print "".join(", ", @points)." ]}\r\n";
+
+    open (MYLOG, ">> /tmp/req-log") || die "---Could not open file /tmp/req-log : $!\n";
     printf MYLOG "%s\t%s\n", $date, $cb_str;
     close MYLOG;
 }
