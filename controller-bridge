@@ -1,0 +1,100 @@
+#!/usr/bin/perl -w
+
+# 09 Apr 2012 Jesse Zbikowski - use Wave controller as serial data source
+# 05 Nov 2010 Jesse Zbikowski - pass serial data to web server via FastCGI
+# 15 Jun 2010 Gary Leo - log serial data
+
+use FCGI;
+use IO::Select;
+
+sub showData;
+
+my $sock = FCGI::OpenSocket(":9000", 100);
+my $request = FCGI::Request(\*STDIN, \*STDOUT, \*STDERR, \%ENV, $sock);
+my $read_set = new IO::Select(); # create handle set for reading
+$read_set->add($sock); # add the main socket to the set 
+
+my $debug =     1;
+my $logfile = "/tmp/cb-log";
+my ($cb_str, $date);
+my $serial = $ARGV[0] || "/dev/ttyS1";
+
+chomp($date=`date`);
+open (OUTPUT, ">>$logfile") || die "---Could not open file $logfile : $!\n"; #  Write header to file
+printf OUTPUT "# %s\n", $date;
+close OUTPUT;
+printf "\n%s\n", $date;
+
+if ($serial ne 'fake') {
+    system("stty -F $serial 9600 cs8 raw");
+    open INFILE, $serial or die "\nCannot open $serial!\n";
+} else {
+    my $pid = open INFILE, '-|'; # spawn child process to generate data
+    unless ($pid) {
+	defined($pid) or die "\nCouldn't spawn child: $!";
+        # child; be careful that the child exits when the parent is stopped.
+	while (1) {
+	    for (1..5) { print(' '.rand) }
+	    print "\n";
+	    sleep(1);
+	}
+    }
+    # open INFILE, '(while true; do echo'.' $RANDOM' x 5 .'; sleep 1; done) |'
+    #	or die "Can't pipe from shell command: $!";
+}
+
+$read_set->add(\*INFILE);
+
+if ($debug) { open MSG, '>/tmp/debug.log' or die $!; }
+
+while (1) {
+       my ($rh_set) = IO::Select->select($read_set);
+       foreach $rh (@$rh_set) {
+	   if ($rh == $sock) {
+	       print MSG "sock is ready to read.\n" if $debug;
+	       if ($request->Accept() >= 0) {
+		   print MSG "request accepted.\n" if $debug;
+		   showData($cb_str);
+		   $request->Finish();
+	       } 
+	   } elsif ($rh == \*INFILE) {
+	       chomp($cb_str=<INFILE>);
+	       $cb_str =~ s/\r//g;
+	       print MSG "db\t$cb_str\n" if $debug;
+	       chomp($date=`date`);
+	       
+	       #  Write data
+	       open (OUTPUT, ">> $logfile") || die "---Could not open file $logfile : $!\n";
+	       printf OUTPUT "%s\t%s\n", $date, $cb_str;	       
+	       close OUTPUT;
+	   }
+       }
+}
+
+close INFILE;
+exit;
+
+sub showData {
+     #10/04/10 11:58:06       1.4276  39.76   0.05    0.00    2.2944                     
+     #  0    1    2     3     4    5     6     7     8                                   
+    my($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
+    my $str = shift;
+
+    my $a = 1 + rand(2);
+    my $b = 30 + rand(10);
+    my $c = rand(40);
+    my $d = rand(40);
+    my $e = rand(5);
+
+    ($a, $b, $c, $d, $e) = split(/\s+/, $str);
+
+    print "Content-type: text/html\r\n\r\n";
+    printf '{"a": "%.2d/%.2d/%.2d %.2d:%.2d:%.2d", '.
+	'"c": %.4f, "d": %.2f, "e": %.2f, "f": %.2f, "g": %.4f}'.
+	"\r\n",
+    $mon+1, $mday+1, $year-100, $hour, $min, $sec, $a, $b, $c, $d, $e;
+
+    open (MYLOG, ">> /tmp/req-log") || die "---Could not open file /tmp/req-log : $!\n"; #  Write Cycle Analyst data
+    printf MYLOG "%s\t%s\n", $date, $cb_str;
+    close MYLOG;
+}
