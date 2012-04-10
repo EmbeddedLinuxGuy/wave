@@ -221,13 +221,14 @@ function drawLine(t1, t2, t3, l, z) {
 	var thisLine = getGeometry(t1,t2,t3,l,z);
 
 
-	console.log(thisLine)
+	//console.log(thisLine)
 
 	//console.log(x0,y0,x1,y1,x2,y2,x3,y3,x4,y4);
 
 
     var material = new THREE.LineBasicMaterial({
-        color: 0x0000ff,
+        color: 0x6fff00,
+	linewidth: 10,
     });
 
     var geometry = new THREE.Geometry();
@@ -285,7 +286,28 @@ function serviceCall(thisPackage, json_data, successCB, failureCB) {
 
 function getDataCB(data) {
 
-	console.log(data);
+	//console.log('success');
+	//console.log(data);
+
+	if (typeof(data) == 'object') {
+		//console.log(data);
+
+		var t1, t2, t3;
+
+		for (var i=0; i<data.c.length;i=i+3) {
+			
+			t1 = data.c[i];
+			t2 = data.c[i+1];
+			t3 = data.c[i+2];	
+
+			//console.log(t1,t2,t3,i/3);
+
+			updateLine(lines[i/3], t1, t2, t3, LINE_LENGTH, Z_SPACING * i / 3);
+
+
+		}
+
+	}
 	
 }
 
@@ -303,14 +325,13 @@ $(document).ready(function() {
 				serviceCall("", null, getDataCB, getDataCB);
 				
 				//	updateLine(lines[0], Math.ceil(Math.random()*512)-255, Math.ceil(Math.random()*512)-255, Math.ceil(Math.random()*512)-255, LINE_LENGTH, 0);
-				//	updateLine(lines[1], Math.ceil(Math.random()*512)-255, Math.ceil(Math.random()*512)-255, Math.ceil(Math.random()*512)-255, LINE_LENGTH, Z_SPACING);
 				//	updateLine(lines[2], Math.ceil(Math.random()*512)-255, Math.ceil(Math.random()*512)-255, Math.ceil(Math.random()*512)-255, LINE_LENGTH, Z_SPACING * 2);
 				//	updateLine(lines[3], Math.ceil(Math.random()*512)-255, Math.ceil(Math.random()*512)-255, Math.ceil(Math.random()*512)-255, LINE_LENGTH, Z_SPACING * 3);
 
 
         });
 
-        timer.set({ time : 1000, autostart : true });	
+        timer.set({ time : 100, autostart : true });	
 
 
 });
